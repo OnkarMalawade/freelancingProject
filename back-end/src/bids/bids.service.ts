@@ -1,60 +1,140 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Bid, BidStatus } from './entities/bid.entity';
+import { Bid } from './entities/bid.entity';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { UpdateBidDto } from './dto/update-bid.dto';
+import { ProjectsService } from '../projects/projects.service';
 
 @Injectable()
 export class BidsService {
   constructor(
     @InjectRepository(Bid)
-    private readonly bidRepository: Repository<Bid>,
+    private bidsRepository: Repository<Bid>,
+    private projectsService: ProjectsService,
   ) {}
 
-  async create(createBidDto: CreateBidDto) {
-    const bid = this.bidRepository.create(createBidDto);
-    return await this.bidRepository.save(bid);
+  async create(createBidDto: CreateBidDto, freelancerId: string): Promise<Bid> {
+    // Check if project exists
+    const project = await this.projectsService.findOne(createBidDto.projectId);
+
+    // Check if the project is already assigned
+    if (project.assignedFreelancerId) {
+      throw new ConflictException(
+        'This project has already been assigned to a freelancer',
+      );
+    }
+
+    // Check if the freelancer has already bid on this project
+    const existingBid = await this.bidsRepository.findOne({
+      where: {
+        projectId: createBidDto.projectId,
+        freelancerId,
+      },
+    });
+
+    if (existingBid) {
+      throw new ConflictException('You have already bid on this project');
+    }
+
+    const bid = this.bidsRepository.create({
+      ...createBidDto,
+      freelancerId,
+      bidDate: new Date(),
+    });
+
+    return this.bidsRepository.save(bid);
   }
 
-  async findAll() {
-    return await this.bidRepository.find();
+  async findAll(filters?: any): Promise<Bid[]> {
+    const queryBuilder = this.bidsRepository
+      .createQueryBuilder('bid')
+      .leftJoinAndSelect('bid.project', 'project')
+      .leftJoinAndSelect('bid.freelancer', 'freelancer');
+
+    if (filters) {
+      if (filters.projectId) {
+        queryBuilder.andWhere('bid.projectId = :projectId', {
+          projectId: filters.projectId,
+        });
+      }
+
+      if (filters.freelancerId) {
+        queryBuilder.andWhere('bid.freelancerId = :freelancerId', {
+          freelancerId: filters.freelancerId,
+        });
+      }
+    }
+
+    return queryBuilder.getMany();
   }
 
-  async findOne(id: number) {
-    return await this.bidRepository.findOneBy({ id });
-  }
+  async findOne(id: string): Promise<Bid> {
+    const bid = await this.bidsRepository.findOne({
+      where: { bidId: id },
+      relations: ['project', 'freelancer'],
+    });
 
-  async findByProject(project_id: number) {
-    return await this.bidRepository.find({ where: { project_id } });
-  }
-
-  async update(id: number, updateBidDto: UpdateBidDto) {
-    await this.bidRepository.update(id, updateBidDto);
-    return this.findOne(id);
-  }
-
-  async remove(id: number) {
-    await this.bidRepository.delete(id);
-  }
-
-  async acceptBid(id: number) {
-    const bid = await this.findOne(id);
-    if (!bid) throw new Error('Bid not found');
-
-    // Accept this bid
-    bid.status = BidStatus.ACCEPTED;
-    await this.bidRepository.save(bid);
-
-    // Reject all other bids for this project
-    await this.bidRepository
-      .createQueryBuilder()
-      .update(Bid)
-      .set({ status: BidStatus.REJECTED })
-      .where('project_id = :projectId', { projectId: bid.project_id })
-      .andWhere('id != :bidId', { bidId: id })
-      .execute();
+    if (!bid) {
+      throw new NotFoundException(`Bid with ID ${id} not found`);
+    }
 
     return bid;
+  }
+
+  async update(
+    id: string,
+    updateBidDto: UpdateBidDto,
+    freelancerId: string,
+  ): Promise<Bid> {
+    const bid = await this.findOne(id);
+
+    // Only the freelancer who created the bid can update it
+    if (bid.freelancerId !== freelancerId) {
+      throw new ForbiddenException('You can only update your own bids');
+    }
+
+    // Check if the project is already assigned
+    const project = await this.projectsService.findOne(bid.projectId);
+    if (project.assignedFreelancerId) {
+      throw new ConflictException(
+        'This project has already been assigned to a freelancer',
+      );
+    }
+
+    // Don't allow changing the project or freelancer
+    delete updateBidDto.projectId;
+    delete updateBidDto.freelancerId;
+
+    this.bidsRepository.merge(bid, updateBidDto);
+    return this.bidsRepository.save(bid);
+  }
+
+  async remove(id: string, freelancerId: string): Promise<void> {
+    const bid = await this.findOne(id);
+
+    // Only the freelancer who created the bid can delete it
+    if (bid.freelancerId !== freelancerId) {
+      throw new ForbiddenException('You can only delete your own bids');
+    }
+
+    // Check if the project is already assigned
+    const project = await this.projectsService.findOne(bid.projectId);
+    if (project.assignedFreelancerId) {
+      throw new ConflictException(
+        'This project has already been assigned to a freelancer',
+      );
+    }
+
+    const result = await this.bidsRepository.delete(id);
+
+    if (result.affected === 0) {
+      throw new NotFoundException(`Bid with ID ${id} not found`);
+    }
   }
 }

@@ -1,37 +1,44 @@
+// src/invoices/entities/invoice.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  ManyToOne,
+  JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
 } from 'typeorm';
+import { Milestone } from '../../milestones/entities/milestone.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('invoices')
 export class Invoice {
-  @PrimaryGeneratedColumn()
-  invoice_id: number;
+  @PrimaryGeneratedColumn('uuid')
+  invoiceId: string;
 
   @Column()
-  project_id: number;
+  milestoneId: string;
 
   @Column()
-  client_id: number;
+  clientId: string;
 
   @Column()
-  freelancer_id: number;
+  freelancerId: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
-  amount: number;
-
-  @Column({ default: 'Pending' })
-  status: string; // Pending | Paid | Cancelled
+  @Column({ default: false })
+  isPaid: boolean;
 
   @CreateDateColumn()
-  created_at: Date;
+  createdAt: Date;
 
-  @UpdateDateColumn()
-  updated_at: Date;
+  @ManyToOne(() => Milestone, (milestone) => milestone.invoice)
+  @JoinColumn({ name: 'milestoneId' })
+  milestone: Milestone;
 
-  @Column({ nullable: true })
-  payment_date: Date;
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'clientId' })
+  client: User;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'freelancerId' })
+  freelancer: User;
 }

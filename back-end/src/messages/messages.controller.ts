@@ -1,42 +1,38 @@
+// src/messages/messages.controller.ts
 import {
   Controller,
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
+  UseGuards,
+  Req,
+  Query,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('messages')
+@UseGuards(JwtAuthGuard)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
-  create(@Body() createMessageDto: CreateMessageDto) {
-    return this.messagesService.create(createMessageDto);
+  create(@Body() createMessageDto: CreateMessageDto, @Req() req) {
+    return this.messagesService.create(createMessageDto, req.user.userId);
   }
 
   @Get()
-  findAll() {
-    return this.messagesService.findAll();
+  findAll(@Query('projectId') projectId: string, @Req() req) {
+    if (!projectId) {
+      throw new Error('Project ID is required');
+    }
+    return this.messagesService.findAll(projectId, req.user.userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.messagesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: number, @Body() updateMessageDto: UpdateMessageDto) {
-    return this.messagesService.update(+id, updateMessageDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.messagesService.remove(+id);
+  findOne(@Param('id') id: string, @Req() req) {
+    return this.messagesService.findOne(id, req.user.userId);
   }
 }

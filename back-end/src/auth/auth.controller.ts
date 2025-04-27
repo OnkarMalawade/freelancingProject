@@ -1,31 +1,52 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  HttpCode,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { ForgetPasswordDto } from './dto/forget-password.dto';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(
+    @Body() registerDto: RegisterUserDto,
+  ): Promise<LoginResponseDto> {
+    return this.authService.register(registerDto);
   }
 
+  @Public()
+  @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  @HttpCode(200)
+  async login(@Request() req): Promise<LoginResponseDto> {
+    return this.authService.login(req.user);
   }
 
-  @Post('forget-password')
-  forgetPassword(@Body() dto: ForgetPasswordDto) {
-    return this.authService.forgetPassword(dto);
+  @Public()
+  @Post('refresh')
+  @HttpCode(200)
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<LoginResponseDto> {
+    return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
-  @Post('refresh-token')
-  refreshToken(@Body() dto: RefreshTokenDto) {
-    return this.authService.refreshTokens(dto.refreshToken);
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  getProfile(@Request() req) {
+    return req.user;
   }
 }

@@ -1,19 +1,31 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+// src/milestones/dto/create-milestone.dto.ts
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsDateString,
+  IsUUID,
+  IsIn,
+} from 'class-validator';
 
 export class CreateMilestoneDto {
-  @IsNumber()
-  cid: number;
-
-  @IsNumber()
-  mid: number;
-
-  @IsNumber()
-  fid: number;
-
+  @IsNotEmpty()
   @IsString()
-  @IsNotEmpty()
-  mileStonesMsg: string;
+  title: string;
 
   @IsNotEmpty()
-  dates: Date;
+  @IsDateString()
+  dueDate: Date;
+
+  @IsNotEmpty()
+  @IsNumber()
+  amount: number;
+
+  @IsNotEmpty()
+  @IsIn(['pending', 'in_progress', 'completed', 'approved'])
+  status: string;
+
+  @IsNotEmpty()
+  @IsUUID()
+  projectId: string;
 }

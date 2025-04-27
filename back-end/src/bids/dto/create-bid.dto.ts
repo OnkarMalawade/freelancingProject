@@ -1,19 +1,23 @@
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsUUID,
+  IsNumber,
+  IsPositive,
+  IsString,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateBidDto {
-  @IsNumber()
-  project_id: number;
-
-  @IsNumber()
-  freelancer_id: number;
-
-  @IsNumber()
-  bid_amount: number;
-
-  @IsString()
   @IsNotEmpty()
-  cover_letter: string;
+  @IsUUID()
+  projectId: string;
 
+  @IsNotEmpty()
   @IsNumber()
-  estimated_days: number;
+  @IsPositive()
+  bidAmount: number;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
 }

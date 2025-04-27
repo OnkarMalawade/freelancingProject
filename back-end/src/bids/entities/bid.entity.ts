@@ -1,35 +1,46 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-
-export enum BidStatus {
-  PENDING = 'pending',
-  ACCEPTED = 'accepted',
-  REJECTED = 'rejected',
-}
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Project } from '../../projects/entities/project.entity';
 
 @Entity('bids')
 export class Bid {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  bidId: string;
 
   @Column()
-  project_id: number;
+  projectId: string;
 
   @Column()
-  freelancer_id: number;
+  freelancerId: string;
 
   @Column('decimal', { precision: 10, scale: 2 })
-  bid_amount: number;
+  bidAmount: number;
 
-  @Column('text')
-  cover_letter: string;
+  @Column('date')
+  bidDate: Date;
 
-  @Column()
-  estimated_days: number;
+  @Column('text', { nullable: true })
+  message: string;
 
-  @Column({
-    type: 'enum',
-    enum: BidStatus,
-    default: BidStatus.PENDING,
-  })
-  status: BidStatus;
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToOne(() => Project, (project) => project.bids)
+  @JoinColumn({ name: 'projectId' })
+  project: Project;
+
+  @ManyToOne(() => User, (user) => user.bids)
+  @JoinColumn({ name: 'freelancerId' })
+  freelancer: User;
 }

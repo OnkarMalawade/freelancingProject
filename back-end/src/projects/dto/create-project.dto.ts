@@ -1,36 +1,30 @@
 import {
   IsNotEmpty,
-  IsArray,
-  IsNumber,
   IsString,
-  IsOptional,
+  IsNumber,
+  IsPositive,
+  IsDateString,
 } from 'class-validator';
 
 export class CreateProjectDto {
-  @IsNumber()
-  client_id: number;
-
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   title: string;
 
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   description: string;
 
-  @IsArray()
-  skillsRequired?: string[];
-
-  @IsNumber()
-  budget_min: number;
-
-  @IsNumber()
-  budget_max: number;
-
+  @IsNotEmpty()
   @IsString()
-  deadline: string;
+  category: string;
 
-  @IsOptional()
-  @IsString()
-  attachment?: string;
+  @IsNotEmpty()
+  @IsNumber()
+  @IsPositive()
+  budget: number;
+
+  @IsNotEmpty()
+  @IsDateString()
+  deadline: Date;
 }

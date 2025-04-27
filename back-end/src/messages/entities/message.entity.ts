@@ -1,29 +1,42 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { Attachment } from '../../attachments/entities/attachment.entity';
+// src/messages/entities/message.entity.ts
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  CreateDateColumn,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Project } from '../../projects/entities/project.entity';
+import { File } from '../../files/entities/file.entity';
 
 @Entity('messages')
 export class Message {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  messageId: string;
+
+  @Column({ type: 'text' })
+  text: string;
 
   @Column()
-  mid: number; // sender's user id
+  senderId: string;
 
   @Column()
-  senderRole: string; // 'client' or 'freelancer'
+  projectId: string;
 
-  @Column()
-  cid: number; // receiver's user id
+  @CreateDateColumn()
+  createdAt: Date;
 
-  @Column()
-  receiverRole: string; // 'client' or 'freelancer'
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'senderId' })
+  sender: User;
 
-  @Column('text')
-  content: string;
+  @ManyToOne(() => Project, (project) => project.messages)
+  @JoinColumn({ name: 'projectId' })
+  project: Project;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  timestamp: Date;
-
-  @OneToMany(() => Attachment, (attachment) => attachment.message)
-  attachments: Attachment[];
+  @OneToMany(() => File, (file) => file.message)
+  files: File[];
 }

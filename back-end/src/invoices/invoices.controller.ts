@@ -1,3 +1,4 @@
+// src/invoices/invoices.controller.ts
 import {
   Controller,
   Get,
@@ -5,38 +6,46 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('invoices')
+@UseGuards(JwtAuthGuard)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Post()
-  create(@Body() createInvoiceDto: CreateInvoiceDto) {
-    return this.invoicesService.create(createInvoiceDto);
+  @Roles('client')
+  @UseGuards(RolesGuard)
+  create(@Body() createInvoiceDto: CreateInvoiceDto, @Req() req) {
+    return this.invoicesService.create(createInvoiceDto, req.user.userId);
   }
 
   @Get()
-  findAll() {
-    return this.invoicesService.findAll();
+  findAll(@Req() req) {
+    return this.invoicesService.findAll(req.user.userId, req.user.role);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.invoicesService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req) {
+    return this.invoicesService.findOne(id, req.user.userId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: number, @Body() updateInvoiceDto: UpdateInvoiceDto) {
-    return this.invoicesService.update(+id, updateInvoiceDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.invoicesService.remove(+id);
+  @Roles('client')
+  @UseGuards(RolesGuard)
+  update(
+    @Param('id') id: string,
+    @Body() updateInvoiceDto: UpdateInvoiceDto,
+    @Req() req,
+  ) {
+    return this.invoicesService.update(id, updateInvoiceDto, req.user.userId);
   }
 }
