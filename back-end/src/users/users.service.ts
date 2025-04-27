@@ -121,7 +121,11 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User> {
-    return this.usersRepository.findOne({ where: { email } });
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    return user;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
@@ -143,9 +147,10 @@ export class UsersService {
     const user = await this.findOne(id);
 
     if (updateSkillsDto.skillIds && updateSkillsDto.skillIds.length > 0) {
-      const skills = await this.skillsRepository.findByIds(
-        updateSkillsDto.skillIds,
+      const skillPromises = updateSkillsDto.skillIds.map((skillId) =>
+        this.skillsService.findOne(skillId),
       );
+      const skills = await Promise.all(skillPromises);
       user.skills = skills;
     } else {
       user.skills = [];

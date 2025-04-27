@@ -7,7 +7,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import * as rateLimit from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
