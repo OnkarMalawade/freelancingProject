@@ -19,7 +19,7 @@ export class CreateProjectDto {
   description: string;
 
   @IsArray()
-  skills_required: string[];
+  skillsRequired?: string[];
 
   @IsNumber()
   budget_min: number;

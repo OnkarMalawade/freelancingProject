@@ -1,5 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { SkillsProjectRequired } from './skills-projects.entity';
 @Entity('projects')
 export class Project {
   @PrimaryGeneratedColumn()
@@ -14,8 +14,8 @@ export class Project {
   @Column('text')
   description: string;
 
-  @Column('simple-array')
-  skills_required: string[];
+  @OneToMany(() => SkillsProjectRequired, (skill) => skill.project)
+  requiredSkills: SkillsProjectRequired[];
 
   @Column('decimal', { precision: 10, scale: 2 })
   budget_min: number;

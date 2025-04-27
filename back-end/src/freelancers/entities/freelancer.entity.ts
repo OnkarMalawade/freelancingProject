@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { SkillsFreelancer } from './skillsfreelancer.entity';
 
 @Entity('freelancers')
 export class Freelancer {
@@ -14,8 +15,8 @@ export class Freelancer {
   @Column('text')
   bio: string;
 
-  @Column('simple-array')
-  skills: string[]; // ['React', 'Node.js', 'AWS']
+  @OneToMany(() => SkillsFreelancer, (skill) => skill.freelancer)
+  skills: SkillsFreelancer[];
 
   @Column('int')
   experience: number; // years

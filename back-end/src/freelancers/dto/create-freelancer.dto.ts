@@ -18,8 +18,9 @@ export class CreateFreelancerDto {
   @IsNotEmpty()
   bio: string;
 
+  @IsOptional()
   @IsArray()
-  skills: string[];
+  skills?: string[];
 
   @IsNumber()
   experience: number;
