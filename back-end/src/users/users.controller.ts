@@ -2,147 +2,96 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
+  Body,
   Param,
-  Delete,
-  UseGuards,
   UploadedFile,
   UseInterceptors,
-  ParseUUIDPipe,
+  Delete,
+  UseGuards,
   Request,
   ForbiddenException,
-  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UpdateUserSkillsDto } from './dto/update-user-skills.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { AddSkillsDto } from './dto/add-skills.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { diskStorage } from 'multer';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { extname } from 'path';
 import { v4 as uuid } from 'uuid';
-
-import { AddSkillsDto } from './dto/add-skills.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  @Roles('admin')
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  // @Post()
+  // @Roles('admin')
+  // create(@Body() createUserDto: CreateUserDto) {
+  //   return this.usersService.create(createUserDto);
+  // }
+
+  @Post('skills/:id')
+  async addSkills(
+    @Param('id') id: number,
+    @Body('skillIds') skillIds: number[],
+  ) {
+    return this.usersService.addSkillsToUser(id, skillIds);
   }
 
   @Get()
-  @Roles('admin')
   findAll() {
     return this.usersService.findAll();
   }
 
-  @Post('skills')
-  @UseGuards(JwtAuthGuard)
-  addSkills(@Body() addSkillsDto: AddSkillsDto, @Req() req) {
-    return this.usersService.addSkills(req.user.userId, addSkillsDto);
-  }
-
-  @Delete('skills/:skillId')
-  @UseGuards(JwtAuthGuard)
-  removeSkill(@Param('skillId') skillId: string, @Req() req) {
-    return this.usersService.removeSkill(req.user.userId, skillId);
-  }
-
-  @Get('skills')
-  @UseGuards(JwtAuthGuard)
-  getUserSkills(@Req() req) {
-    return this.usersService.getUserSkills(req.user.userId);
-  }
-
-  @Get('profile')
+  @Get('me')
   getProfile(@Request() req) {
-    return this.usersService.findOne(req.user.userId);
+    return this.usersService.findOne(req.user.id);
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    // Allow users to view their own profile or admins to view any profile
-    if (req.user.userId !== id && req.user.role !== 'admin') {
-      throw new ForbiddenException('You can only view your own profile');
-    }
-    return this.usersService.findOne(id);
+  @Patch('me')
+  updateProfile(@Body() updateUserDto: UpdateUserDto, @Request() req) {
+    return this.usersService.update(req.user.id, updateUserDto);
   }
 
-  @Patch(':id')
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateUserDto: UpdateUserDto,
-    @Request() req,
-  ) {
-    // Allow users to update their own profile or admins to update any profile
-    if (req.user.userId !== id && req.user.role !== 'admin') {
-      throw new ForbiddenException('You can only update your own profile');
-    }
-    return this.usersService.update(id, updateUserDto);
+  @Delete('me/skills/:skillId')
+  removeSkill(@Param('skillId') skillId: number, @Request() req) {
+    return this.usersService.removeSkill(req.user.id, skillId);
   }
 
-  @Patch(':id/skills')
-  updateSkills(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateSkillsDto: UpdateUserSkillsDto,
-    @Request() req,
-  ) {
-    // Allow users to update their own skills or admins to update any user's skills
-    if (req.user.userId !== id && req.user.role !== 'admin') {
-      throw new ForbiddenException('You can only update your own skills');
-    }
-    return this.usersService.updateUserSkills(id, updateSkillsDto);
+  @Get('me/skills')
+  getUserSkills(@Request() req) {
+    return this.usersService.getUserSkills(req.user.id);
   }
 
-  @Post(':id/profile-image')
+  @Post('me/profile-image')
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
         destination: './uploads/profile-images',
         filename: (req, file, cb) => {
-          const fileName = `${uuid()}${extname(file.originalname)}`;
-          cb(null, fileName);
+          const filename = `${Date.now()}-${file.originalname}`;
+          cb(null, filename);
         },
       }),
       fileFilter: (req, file, cb) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
           return cb(new Error('Only image files are allowed!'), false);
         }
         cb(null, true);
       },
-      limits: {
-        fileSize: 1024 * 1024 * 5, // 5MB
-      },
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
     }),
   )
-  async uploadProfileImage(
-    @Param('id', ParseUUIDPipe) id: string,
+  uploadProfileImage(
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
-    // Allow users to upload their own profile image or admins to upload any user's image
-    if (req.user.userId !== id && req.user.role !== 'admin') {
-      throw new ForbiddenException(
-        'You can only upload your own profile image',
-      );
-    }
-
     const imageUrl = `${process.env.API_URL || 'http://localhost:3000'}/uploads/profile-images/${file.filename}`;
-    return this.usersService.updateProfileImage(id, imageUrl);
-  }
-
-  @Delete(':id')
-  @Roles('admin')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(id);
+    return this.usersService.updateProfileImage(req.user.id, imageUrl);
   }
 }

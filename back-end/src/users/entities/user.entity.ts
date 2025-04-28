@@ -18,8 +18,8 @@ import { Exclude } from 'class-transformer';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  userId: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column()
   name: string;
@@ -70,8 +70,8 @@ export class User {
   @ManyToMany(() => Skill, (skill) => skill.users)
   @JoinTable({
     name: 'user_skills',
-    joinColumn: { name: 'userId', referencedColumnName: 'userId' },
-    inverseJoinColumn: { name: 'skillId', referencedColumnName: 'skillId' },
+    joinColumn: { name: 'userId', referencedColumnName: 'id' }, // FIX
+    inverseJoinColumn: { name: 'skillId', referencedColumnName: 'id' }, // FIX
   })
   skills: Skill[];
 }

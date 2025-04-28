@@ -20,7 +20,7 @@ export class SkillsController {
   constructor(private readonly skillsService: SkillsService) {}
 
   @Post()
-  @Roles('admin') // Only admin can create new skills
+  @Roles('freelancer') // Only admin can create new skills
   @UseGuards(RolesGuard)
   create(@Body() createSkillDto: CreateSkillDto) {
     return this.skillsService.create(createSkillDto);
@@ -33,13 +33,13 @@ export class SkillsController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.skillsService.findOne(id);
+    return this.skillsService.findOne(+id);
   }
 
   @Delete(':id')
-  @Roles('admin') // Only admin can delete skills
+  @Roles('freelancer') // Only admin can delete skills
   @UseGuards(RolesGuard)
   remove(@Param('id') id: string) {
-    return this.skillsService.remove(id);
+    return this.skillsService.remove(+id);
   }
 }

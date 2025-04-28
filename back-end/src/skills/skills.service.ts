@@ -1,4 +1,3 @@
-// src/skills/skills.service.ts
 import {
   Injectable,
   ConflictException,
@@ -17,7 +16,6 @@ export class SkillsService {
   ) {}
 
   async create(createSkillDto: CreateSkillDto) {
-    // Check if skill already exists
     const existingSkill = await this.skillsRepository.findOne({
       where: { skillName: createSkillDto.skillName },
     });
@@ -34,9 +32,9 @@ export class SkillsService {
     return this.skillsRepository.find();
   }
 
-  async findOne(id: string) {
+  async findOne(id: number) {
     const skill = await this.skillsRepository.findOne({
-      where: { skillId: id },
+      where: { id }, // ✅ Corrected here
     });
 
     if (!skill) {
@@ -50,7 +48,7 @@ export class SkillsService {
     return this.skillsRepository.findOne({ where: { skillName: name } });
   }
 
-  async remove(id: string) {
+  async remove(id: number) {
     const skill = await this.findOne(id);
     return this.skillsRepository.remove(skill);
   }

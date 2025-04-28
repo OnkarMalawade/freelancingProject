@@ -1,116 +1,52 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UpdateUserSkillsDto } from './dto/update-user-skills.dto';
-import { Skill } from '../skills/entities/skill.entity';
 import { AddSkillsDto } from './dto/add-skills.dto';
-import { SkillsService } from '../skills/skills.service';
+import { Skill } from '../skills/entities/skill.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    private skillsService: SkillsService,
+    private readonly usersRepository: Repository<User>,
+
+    @InjectRepository(Skill)
+    private readonly skillsRepository: Repository<Skill>,
   ) {}
 
-  async addSkills(userId: string, addSkillsDto: AddSkillsDto) {
+  async create(createUserDto: CreateUserDto) {
+    const user = this.usersRepository.create(createUserDto);
+    return this.usersRepository.save(user);
+  }
+
+  async findAll() {
+    return this.usersRepository.find();
+  }
+
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    await this.usersRepository.update(id, updateUserDto);
+    return this.findOne(id);
+  }
+
+  async addSkills(userId: number, addSkillsDto: AddSkillsDto) {
     const user = await this.findOne(userId);
-
-    // Get all the skills
-    const skillPromises = addSkillsDto.skillIds.map((skillId) =>
-      this.skillsService.findOne(skillId),
-    );
-
-    const skills = await Promise.all(skillPromises);
-
-    // Add skills to user's skills array
-    if (!user.skills) {
-      user.skills = [];
-    }
-
-    user.skills = [...user.skills, ...skills];
-
+    const skills = await this.skillsRepository.findByIds(addSkillsDto.skillIds);
+    user.skills = [...(user.skills || []), ...skills];
     return this.usersRepository.save(user);
   }
 
-  async removeSkill(userId: string, skillId: string) {
+  async removeSkill(userId: number, skillId: number) {
     const user = await this.findOne(userId);
-    await this.skillsService.findOne(skillId); // Ensure skill exists
-
-    if (!user.skills) {
-      return user;
-    }
-
-    user.skills = user.skills.filter((skill) => skill.skillId !== skillId);
-
+    user.skills = user.skills.filter((skill) => skill.id !== skillId);
     return this.usersRepository.save(user);
   }
 
-  async getUserSkills(userId: string) {
+  async findOne(id: number) {
     const user = await this.usersRepository.findOne({
-      where: { userId },
-      relations: ['skills'],
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    return user.skills || [];
-  }
-
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const { email, password } = createUserDto;
-
-    // Check if user with this email already exists
-    const existingUser = await this.usersRepository.findOne({
-      where: { email },
-    });
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create and save user
-    const user = this.usersRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
-
-    return this.usersRepository.save(user);
-  }
-
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.find({
-      select: [
-        'userId',
-        'name',
-        'email',
-        'role',
-        'bio',
-        'image',
-        'createdAt',
-        'updatedAt',
-      ],
-    });
-  }
-
-  async findOne(id: string): Promise<User> {
-    const user = await this.usersRepository.findOne({
-      where: { userId: id },
-      relations: ['skills'],
+      where: { id } as any, // 👈 added `as any`
     });
 
     if (!user) {
@@ -118,58 +54,52 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async getUserSkills(userId: number) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId } as any, // 👈 added `as any`
+      relations: ['skills'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user.skills;
+  }
+
+  async updateProfileImage(userId: number, imageUrl: string) {
+    const user = await this.findOne(userId);
+    user.image = imageUrl;
+    return this.usersRepository.save(user);
   }
 
   async findByEmail(email: string): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      throw new NotFoundException(`User with email ${email} not found`);
+      throw new NotFoundException('User with email ${email} not found');
     }
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
+  async addSkillsToUser(userId: number, skillIds: number[]): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['skills'], // Important: load existing skills
+    });
 
-    if (updateUserDto.password) {
-      const salt = await bcrypt.genSalt();
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
+    if (!user) {
+      throw new Error('User not found');
     }
 
-    this.usersRepository.merge(user, updateUserDto);
-    return this.usersRepository.save(user);
-  }
+    const skills = await this.skillsRepository.findByIds(skillIds);
 
-  async updateUserSkills(
-    id: string,
-    updateSkillsDto: UpdateUserSkillsDto,
-  ): Promise<User> {
-    const user = await this.findOne(id);
-
-    if (updateSkillsDto.skillIds && updateSkillsDto.skillIds.length > 0) {
-      const skillPromises = updateSkillsDto.skillIds.map((skillId) =>
-        this.skillsService.findOne(skillId),
-      );
-      const skills = await Promise.all(skillPromises);
-      user.skills = skills;
-    } else {
-      user.skills = [];
+    if (!skills.length) {
+      throw new Error('Skills not found');
     }
 
-    return this.usersRepository.save(user);
-  }
-
-  async remove(id: string): Promise<void> {
-    const result = await this.usersRepository.delete(id);
-
-    if (result.affected === 0) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-  }
-
-  async updateProfileImage(id: string, imageUrl: string): Promise<User> {
-    const user = await this.findOne(id);
-    user.image = imageUrl;
-    return this.usersRepository.save(user);
+    user.skills = [...user.skills, ...skills]; // merge existing + new
+    return await this.usersRepository.save(user);
   }
 }
