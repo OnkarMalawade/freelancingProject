@@ -53,7 +53,7 @@ export class UsersController {
     return this.usersService.findOne(req.user.id);
   }
 
-  @Patch('me')
+  @Patch('me/profile')
   updateProfile(@Body() updateUserDto: UpdateUserDto, @Request() req) {
     return this.usersService.update(req.user.id, updateUserDto);
   }

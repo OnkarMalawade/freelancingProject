@@ -7,6 +7,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { AddSkillsDto } from './dto/add-skills.dto';
 import { Skill } from '../skills/entities/skill.entity';
 
+import * as bcrypt from 'bcrypt';
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -19,6 +21,12 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto) {
     const user = this.usersRepository.create(createUserDto);
+
+    if (user.password) {
+      const salt = await bcrypt.genSalt(10); // 10 is standard
+      user.password = await bcrypt.hash(user.password, salt);
+    }
+
     return this.usersRepository.save(user);
   }
 
@@ -27,7 +35,23 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    await this.usersRepository.update(id, updateUserDto);
+    const user = await this.findOne(id);
+
+    // Prevent email from being updated
+    if ('email' in updateUserDto) {
+      delete updateUserDto['email'];
+    }
+
+    // If password needs to be updated, hash it
+    if (updateUserDto.password) {
+      const salt = await bcrypt.genSalt(10);
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
+    }
+
+    // Merge existing user and updated fields
+    const updatedUser = this.usersRepository.merge(user, updateUserDto);
+
+    await this.usersRepository.save(updatedUser);
     return this.findOne(id);
   }
 
